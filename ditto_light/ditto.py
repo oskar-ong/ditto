@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.cuda.amp import GradScaler, autocast
 import random
 import numpy as np
 import sklearn.metrics as metrics
@@ -14,6 +15,7 @@ from torch.utils import data
 from transformers import AutoModel, AdamW, get_linear_schedule_with_warmup
 from tensorboardX import SummaryWriter
 from apex import amp
+
 
 lm_mp = {'roberta': 'roberta-base',
          'distilbert': 'distilbert-base-uncased'}
@@ -105,7 +107,7 @@ def evaluate(model, iterator, threshold=None):
         return f1, best_th
 
 
-def train_step(train_iter, model, optimizer, scheduler, hp):
+def train_step(self, train_iter, model, optimizer, scheduler, hp):
     """Perform a single training step
 
     Args:
@@ -123,28 +125,32 @@ def train_step(train_iter, model, optimizer, scheduler, hp):
     for i, batch in enumerate(train_iter):
         optimizer.zero_grad()
 
-        if len(batch) == 2:
-            x, y = batch
-            prediction = model(x)
-        else:
-            x1, x2, y = batch
-            prediction = model(x1, x2)
+        with autocast(enabled=hp.f16):
+            if len(batch) == 2:
+                x, y = batch
+                prediction = model(x)
+            else:
+                x1, x2, y = batch
+                prediction = model(x1, x2)
 
-        loss = criterion(prediction, y.to(model.device))
+            loss = criterion(prediction, y.to(model.device))
+        self.scaler.scale(loss).backward()
 
-        if hp.fp16:
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-        else:
-            loss.backward()
-        optimizer.step()
+        self.scaler.step(optimizer)
+        self.scaler.update()
+#        if hp.fp16:
+#            with amp.scale_loss(loss, optimizer) as scaled_loss:
+#                scaled_loss.backward()
+#        else:
+#            loss.backward()
+#        optimizer.step()
         scheduler.step()
         if i % 10 == 0: # monitoring
             print(f"step: {i}, loss: {loss.item()}")
         del loss
 
 
-def train(trainset, validset, testset, run_tag, hp):
+def train(self, trainset, validset, testset, run_tag, hp):
     """Train and evaluate the model
 
     Args:
@@ -183,9 +189,10 @@ def train(trainset, validset, testset, run_tag, hp):
                        alpha_aug=hp.alpha_aug)
     model = model.cuda()
     optimizer = AdamW(model.parameters(), lr=hp.lr)
+    self.scaler = GradScaler(enabled=hp.fp16)
 
-    if hp.fp16:
-        model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
+#    if hp.fp16:
+#        model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
     num_steps = (len(trainset) // hp.batch_size) * hp.n_epochs
     scheduler = get_linear_schedule_with_warmup(optimizer,
                                                 num_warmup_steps=0,
