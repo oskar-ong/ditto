@@ -105,7 +105,7 @@ def evaluate(model, iterator, threshold=None):
         return f1, best_th
 
 
-def train_step(self, train_iter, model, optimizer, scheduler, hp):
+def train_step(train_iter, model, scaler, optimizer, scheduler, hp):
     """Perform a single training step
 
     Args:
@@ -132,10 +132,10 @@ def train_step(self, train_iter, model, optimizer, scheduler, hp):
                 prediction = model(x1, x2)
 
             loss = criterion(prediction, y.to(model.device))
-        self.scaler.scale(loss).backward()
+        scaler.scale(loss).backward()
 
-        self.scaler.step(optimizer)
-        self.scaler.update()
+        scaler.step(optimizer)
+        scaler.update()
 #        if hp.fp16:
 #            with amp.scale_loss(loss, optimizer) as scaled_loss:
 #                scaled_loss.backward()
@@ -148,7 +148,7 @@ def train_step(self, train_iter, model, optimizer, scheduler, hp):
         del loss
 
 
-def train(self, trainset, validset, testset, run_tag, hp):
+def train(trainset, validset, testset, run_tag, hp):
     """Train and evaluate the model
 
     Args:
@@ -187,7 +187,7 @@ def train(self, trainset, validset, testset, run_tag, hp):
                        alpha_aug=hp.alpha_aug)
     model = model.cuda()
     optimizer = AdamW(model.parameters(), lr=hp.lr)
-    self.scaler = GradScaler(enabled=hp.fp16)
+    scaler = GradScaler(enabled=hp.fp16)
 
 #    if hp.fp16:
 #        model, optimizer = amp.initialize(model, optimizer, opt_level='O2')
@@ -203,7 +203,7 @@ def train(self, trainset, validset, testset, run_tag, hp):
     for epoch in range(1, hp.n_epochs+1):
         # train
         model.train()
-        train_step(train_iter, model, optimizer, scheduler, hp)
+        train_step(train_iter, model, scaler, optimizer, scheduler, hp)
 
         # eval
         model.eval()
