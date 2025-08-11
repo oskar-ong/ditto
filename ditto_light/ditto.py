@@ -123,7 +123,7 @@ def train_step(train_iter, model, scaler, optimizer, scheduler, hp):
     for i, batch in enumerate(train_iter):
         optimizer.zero_grad()
 
-        with autocast(enabled=hp.f16):
+        with autocast(enabled=hp.fp16):
             if len(batch) == 2:
                 x, y = batch
                 prediction = model(x)
