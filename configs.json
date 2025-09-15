@@ -1,5 +1,13 @@
 [
   {
+    "name": "movies1",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/movies1/train.txt",
+    "validset": "data/movies1/valid.txt",
+    "testset": "data/movies1/test.txt"
+  },
+  {
     "name": "wdc_all_small",
     "task_type": "classification",
     "vocab": ["0", "1"],
