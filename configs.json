@@ -1,5 +1,13 @@
 [
   {
+    "name": "dy-100k-1",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/dy-100k-1/train.txt",
+    "validset": "data/dy-100k-1/valid.txt",
+    "testset": "data/dy-100k-1/test.txt"
+  },
+  {
     "name": "movies1",
     "task_type": "classification",
     "vocab": ["0", "1"],
