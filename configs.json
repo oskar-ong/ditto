@@ -8,6 +8,22 @@
     "testset": "data/dy-100k-1/test.txt"
   },
   {
+    "name": "movies1-full",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/movies1/full/train.txt",
+    "validset": "data/movies1/full/valid.txt",
+    "testset": "data/movies1/full/test.txt"
+  },
+  {
+    "name": "movies1-extracted",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/movies1/extracted/train.txt",
+    "validset": "data/movies1/extracted/valid.txt",
+    "testset": "data/movies1/extracted/test.txt"
+  },
+  {
     "name": "movies1",
     "task_type": "classification",
     "vocab": ["0", "1"],
