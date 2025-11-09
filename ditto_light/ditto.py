@@ -225,20 +225,26 @@ def train(trainset, validset, testset, run_tag, hp):
 
                 # save the checkpoints for each component
                 ckpt_path = os.path.join(hp.logdir, hp.task, 'model.pt')
-                ckpt = {'model': model.state_dict(),
-                        'optimizer': optimizer.state_dict(),
-                        'scheduler': scheduler.state_dict(),
-                        'epoch': epoch}
-                
+                ckpt = {'model': model.state_dict()
+                #        ,
+                #        'optimizer': optimizer.state_dict(),
+                #        'scheduler': scheduler.state_dict(),
+                #        'epoch': epoch
+                }
                 #sanity check 3
                 print("[DEBUG] CWD:", os.getcwd())
                 print("[DEBUG] hp.logdir:", hp.logdir)
                 print("[DEBUG] hp.task:", hp.task)
                 print("[DEBUG] Saving checkpoint to:", ckpt_path)
 
-                torch.save(ckpt, ckpt_path)
+                try:
+                    torch.save(ckpt, ckpt_path)
+                    print("[DEBUG] torch.save completed")
+                except Exception as e:
+                    print("[DEBUG] SAVE FAILED:", repr(e))
+
+                #torch.save(ckpt, ckpt_path)
                 print("[DEBUG] Exists immediately after save?:", os.path.exists(ckpt_path))
-                print('model saved')
 
         print(f"epoch {epoch}: dev_f1={dev_f1}, f1={test_f1}, best_f1={best_test_f1}")
 

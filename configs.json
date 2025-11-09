@@ -8,7 +8,7 @@
     "testset": "data/dy-100k-1/test.txt"
   },
   {
-    "name": "movies1-full",
+    "name": "movies1_full",
     "task_type": "classification",
     "vocab": ["0", "1"],
     "trainset": "data/movies1/full/train.txt",
@@ -16,7 +16,7 @@
     "testset": "data/movies1/full/test.txt"
   },
   {
-    "name": "movies1-extracted",
+    "name": "movies1_extracted",
     "task_type": "classification",
     "vocab": ["0", "1"],
     "trainset": "data/movies1/extracted/train.txt",
