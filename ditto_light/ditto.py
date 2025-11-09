@@ -210,10 +210,14 @@ def train(trainset, validset, testset, run_tag, hp):
         dev_f1, th = evaluate(model, valid_iter)
         test_f1 = evaluate(model, test_iter, threshold=th)
 
+        print(f"dev_f1: {dev_f1}, best_dev_f1 {best_dev_f1}")
         if dev_f1 > best_dev_f1:
+            print("dev_f1 bigger than dev_f1")
             best_dev_f1 = dev_f1
             best_test_f1 = test_f1
+            print(f"save flag: {hp.save_model}")
             if hp.save_model:
+                print("save flag is set")
                 # create the directory if not exist
                 directory = os.path.join(hp.logdir, hp.task)
                 if not os.path.exists(directory):
@@ -226,6 +230,7 @@ def train(trainset, validset, testset, run_tag, hp):
                         'scheduler': scheduler.state_dict(),
                         'epoch': epoch}
                 torch.save(ckpt, ckpt_path)
+                print('model saved')
 
         print(f"epoch {epoch}: dev_f1={dev_f1}, f1={test_f1}, best_f1={best_test_f1}")
 
