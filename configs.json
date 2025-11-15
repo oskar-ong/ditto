@@ -24,6 +24,22 @@
     "testset": "data/movies1/extracted/test.txt"
   },
   {
+    "name": "ebooks1_full",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/ebooks1/full/train.txt",
+    "validset": "data/ebooks1/full/valid.txt",
+    "testset": "data/ebooks1/full/test.txt"
+  },
+  {
+    "name": "ebooks1_extracted",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/ebooks1/extracted/train.txt",
+    "validset": "data/ebooks1/extracted/valid.txt",
+    "testset": "data/ebooks1/extracted/test.txt"
+  },
+  {
     "name": "movies1",
     "task_type": "classification",
     "vocab": ["0", "1"],
