@@ -40,6 +40,22 @@
     "testset": "data/ebooks1/extracted/test.txt"
   },
   {
+    "name": "citations_full",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/citations/full/train.txt",
+    "validset": "data/citations/full/valid.txt",
+    "testset": "data/citations/full/test.txt"
+  },
+  {
+    "name": "citations_extracted",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/citations/extracted/train.txt",
+    "validset": "data/citations/extracted/valid.txt",
+    "testset": "data/citations/extracted/test.txt"
+  },
+  {
     "name": "movies1",
     "task_type": "classification",
     "vocab": ["0", "1"],
