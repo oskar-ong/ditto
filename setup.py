@@ -4,4 +4,5 @@ setup(
     name="ditto_fork",        # arbitrary package name (for pip)
     version="0.1.0",
     packages=find_packages(), # will pick up the `ditto` package
+    py_modules=["matcher"],
 )
