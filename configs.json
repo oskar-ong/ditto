@@ -1,5 +1,13 @@
 [
   {
+    "name": "dirty-dblp-scholar",
+    "task_type": "classification",
+    "vocab": ["0", "1"],
+    "trainset": "data/dirty-dblp-scholar/full/train.txt",
+    "validset": "data/dirty-dblp-scholar/full/valid.txt",
+    "testset": "data/dirty-dblp-scholar/full/test.txt"
+  },
+  {
     "name": "dy-100k-1",
     "task_type": "classification",
     "vocab": ["0", "1"],
