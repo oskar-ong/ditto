@@ -186,7 +186,7 @@ def train(trainset, validset, testset, run_tag, hp):
                        lm=hp.lm,
                        alpha_aug=hp.alpha_aug)
     model = model.cuda()
-    optimizer = AdamW(model.parameters(), lr=hp.lr)
+    optimizer = optim.AdamW(model.parameters(), lr=hp.lr)
     scaler = GradScaler(enabled=hp.fp16)
 
 #    if hp.fp16:
