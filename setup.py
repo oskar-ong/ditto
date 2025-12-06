@@ -1,10 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="ditto_fork",        # arbitrary package name (for pip)
+    name="ditto",        # arbitrary package name (for pip)
     version="0.1.0",
     packages=find_packages(), # will pick up the `ditto` package
-    py_modules=["matcher"],
-    include_package_data=True,
-    package_data={"": ["configs.json"]},
+    py_modules=["matcher"]
 )
