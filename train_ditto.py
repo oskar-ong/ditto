@@ -31,6 +31,7 @@ if __name__=="__main__":
     parser.add_argument("--dk", type=str, default=None)
     parser.add_argument("--summarize", dest="summarize", action="store_true")
     parser.add_argument("--size", type=int, default=None)
+    parser.add_argument("--checkpoint_path", type=str, default=None)
 
     hp = parser.parse_args()
 

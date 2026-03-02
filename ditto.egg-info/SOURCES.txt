@@ -1,0 +1,15 @@
+LICENSE
+README.md
+matcher.py
+setup.py
+ditto.egg-info/PKG-INFO
+ditto.egg-info/SOURCES.txt
+ditto.egg-info/dependency_links.txt
+ditto.egg-info/top_level.txt
+ditto_light/__init__.py
+ditto_light/augment.py
+ditto_light/dataset.py
+ditto_light/ditto.py
+ditto_light/exceptions.py
+ditto_light/knowledge.py
+ditto_light/summarize.py

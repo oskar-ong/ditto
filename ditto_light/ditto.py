@@ -185,6 +185,18 @@ def train(trainset, validset, testset, run_tag, hp):
     model = DittoModel(device=device,
                        lm=hp.lm,
                        alpha_aug=hp.alpha_aug)
+    # --- START CUSTOM LOAD LOGIC ---
+    if hasattr(hp, 'checkpoint_path') and hp.checkpoint_path is not None:
+        print(f"Loading weights from {hp.checkpoint_path}")
+        # Load the state dictionary from your saved .pt file
+        checkpoint = torch.load(hp.checkpoint_path, map_location=device)
+        
+        # If you saved using the standard Ditto logger, the weights 
+        # might be under a 'model' key. If not, use 'checkpoint' directly.
+        state_dict = checkpoint['model'] if 'model' in checkpoint else checkpoint
+        
+        model.load_state_dict(state_dict)
+    # --- END CUSTOM LOAD LOGIC ---
     model = model.cuda()
     optimizer = optim.AdamW(model.parameters(), lr=hp.lr)
     scaler = GradScaler(enabled=hp.fp16)
