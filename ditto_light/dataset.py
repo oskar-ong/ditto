@@ -9,11 +9,18 @@ from .augment import Augmenter
 lm_mp = {'roberta': 'roberta-base',
          'distilbert': 'distilbert-base-uncased'}
 
-def get_tokenizer(lm):
+
+def get_tokenizer(lm, special_tokens=None):
     if lm in lm_mp:
-        return AutoTokenizer.from_pretrained(lm_mp[lm])
+        tokenizer = AutoTokenizer.from_pretrained(lm_mp[lm])
     else:
-        return AutoTokenizer.from_pretrained(lm)
+        tokenizer = AutoTokenizer.from_pretrained(lm)
+
+    if special_tokens:
+        tokenizer.add_special_tokens(
+            {'additional_special_tokens': sorted(special_tokens)})
+
+    return tokenizer
 
 
 class DittoDataset(data.Dataset):
@@ -24,8 +31,9 @@ class DittoDataset(data.Dataset):
                  max_len=256,
                  size=None,
                  lm='roberta',
-                 da=None):
-        self.tokenizer = get_tokenizer(lm)
+                 da=None,
+                 special_tokens=None):
+        self.tokenizer = get_tokenizer(lm, special_tokens=special_tokens)
         self.pairs = []
         self.labels = []
         self.max_len = max_len
@@ -48,7 +56,6 @@ class DittoDataset(data.Dataset):
             self.augmenter = Augmenter()
         else:
             self.augmenter = None
-
 
     def __len__(self):
         """Return the size of the dataset."""
@@ -76,16 +83,16 @@ class DittoDataset(data.Dataset):
 
         # augment if da is set
         if self.da is not None:
-            combined = self.augmenter.augment_sent(left + ' [SEP] ' + right, self.da)
+            combined = self.augmenter.augment_sent(
+                left + ' [SEP] ' + right, self.da)
             left, right = combined.split(' [SEP] ')
             x_aug = self.tokenizer.encode(text=left,
-                                      text_pair=right,
-                                      max_length=self.max_len,
-                                      truncation=True)
+                                          text_pair=right,
+                                          max_length=self.max_len,
+                                          truncation=True)
             return x, x_aug, self.labels[idx]
         else:
             return x, self.labels[idx]
-
 
     @staticmethod
     def pad(batch):
@@ -106,12 +113,11 @@ class DittoDataset(data.Dataset):
             x1 = [xi + [0]*(maxlen - len(xi)) for xi in x1]
             x2 = [xi + [0]*(maxlen - len(xi)) for xi in x2]
             return torch.LongTensor(x1), \
-                   torch.LongTensor(x2), \
-                   torch.LongTensor(y)
+                torch.LongTensor(x2), \
+                torch.LongTensor(y)
         else:
             x12, y = zip(*batch)
             maxlen = max([len(x) for x in x12])
             x12 = [xi + [0]*(maxlen - len(xi)) for xi in x12]
             return torch.LongTensor(x12), \
-                   torch.LongTensor(y)
-
+                torch.LongTensor(y)

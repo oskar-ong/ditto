@@ -18,15 +18,20 @@ from tensorboardX import SummaryWriter
 lm_mp = {'roberta': 'roberta-base',
          'distilbert': 'distilbert-base-uncased'}
 
+
 class DittoModel(nn.Module):
     """A baseline model for EM."""
 
-    def __init__(self, device='cuda', lm='roberta', alpha_aug=0.8):
+    def __init__(self, device='cuda', lm='roberta', alpha_aug=0.8, vocab_size=None):
         super().__init__()
         if lm in lm_mp:
             self.bert = AutoModel.from_pretrained(lm_mp[lm])
         else:
             self.bert = AutoModel.from_pretrained(lm)
+
+        # Resize if vocab size increased
+        if vocab_size:
+            self.bert.resize_token_embeddings(vocab_size)
 
         self.device = device
         self.alpha_aug = alpha_aug
@@ -34,7 +39,6 @@ class DittoModel(nn.Module):
         # linear layer
         hidden_size = self.bert.config.hidden_size
         self.fc = torch.nn.Linear(hidden_size, 2)
-
 
     def forward(self, x1, x2=None):
         """Encode the left, right, and the concatenation of left+right.
@@ -46,21 +50,21 @@ class DittoModel(nn.Module):
         Returns:
             Tensor: binary prediction
         """
-        x1 = x1.to(self.device) # (batch_size, seq_len)
+        x1 = x1.to(self.device)  # (batch_size, seq_len)
         if x2 is not None:
             # MixDA
-            x2 = x2.to(self.device) # (batch_size, seq_len)
+            x2 = x2.to(self.device)  # (batch_size, seq_len)
             enc = self.bert(torch.cat((x1, x2)))[0][:, 0, :]
             batch_size = len(x1)
-            enc1 = enc[:batch_size] # (batch_size, emb_size)
-            enc2 = enc[batch_size:] # (batch_size, emb_size)
+            enc1 = enc[:batch_size]  # (batch_size, emb_size)
+            enc2 = enc[batch_size:]  # (batch_size, emb_size)
 
             aug_lam = np.random.beta(self.alpha_aug, self.alpha_aug)
             enc = enc1 * aug_lam + enc2 * (1.0 - aug_lam)
         else:
             enc = self.bert(x1)[0][:, 0, :]
 
-        return self.fc(enc) # .squeeze() # .sigmoid()
+        return self.fc(enc)  # .squeeze() # .sigmoid()
 
 
 def evaluate(model, iterator, threshold=None):
@@ -93,7 +97,7 @@ def evaluate(model, iterator, threshold=None):
         return f1
     else:
         best_th = 0.5
-        f1 = 0.0 # metrics.f1_score(all_y, all_p)
+        f1 = 0.0  # metrics.f1_score(all_y, all_p)
 
         for th in np.arange(0.0, 1.0, 0.05):
             pred = [1 if p > th else 0 for p in all_probs]
@@ -143,12 +147,12 @@ def train_step(train_iter, model, scaler, optimizer, scheduler, hp):
 #            loss.backward()
 #        optimizer.step()
         scheduler.step()
-        if i % 10 == 0: # monitoring
+        if i % 10 == 0:  # monitoring
             print(f"step: {i}, loss: {loss.item()}")
         del loss
 
 
-def train(trainset, validset, testset, run_tag, hp):
+def train(trainset, validset, testset, run_tag, hp, vocab_size=None):
     """Train and evaluate the model
 
     Args:
@@ -175,26 +179,27 @@ def train(trainset, validset, testset, run_tag, hp):
                                  num_workers=0,
                                  collate_fn=padder)
     test_iter = data.DataLoader(dataset=testset,
-                                 batch_size=hp.batch_size*16,
-                                 shuffle=False,
-                                 num_workers=0,
-                                 collate_fn=padder)
+                                batch_size=hp.batch_size*16,
+                                shuffle=False,
+                                num_workers=0,
+                                collate_fn=padder)
 
     # initialize model, optimizer, and LR scheduler
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = DittoModel(device=device,
                        lm=hp.lm,
-                       alpha_aug=hp.alpha_aug)
+                       alpha_aug=hp.alpha_aug,
+                       vocab_size=vocab_size)
     # --- START CUSTOM LOAD LOGIC ---
     if hasattr(hp, 'checkpoint_path') and hp.checkpoint_path is not None:
         print(f"Loading weights from {hp.checkpoint_path}")
         # Load the state dictionary from your saved .pt file
         checkpoint = torch.load(hp.checkpoint_path, map_location=device)
-        
-        # If you saved using the standard Ditto logger, the weights 
+
+        # If you saved using the standard Ditto logger, the weights
         # might be under a 'model' key. If not, use 'checkpoint' directly.
         state_dict = checkpoint['model'] if 'model' in checkpoint else checkpoint
-        
+
         model.load_state_dict(state_dict)
     # --- END CUSTOM LOAD LOGIC ---
     model = model.cuda()
@@ -238,12 +243,12 @@ def train(trainset, validset, testset, run_tag, hp):
                 # save the checkpoints for each component
                 ckpt_path = os.path.join(hp.logdir, hp.task, 'model.pt')
                 ckpt = {'model': model.state_dict()
-                #        ,
-                #        'optimizer': optimizer.state_dict(),
-                #        'scheduler': scheduler.state_dict(),
-                #        'epoch': epoch
-                }
-                #sanity check 3
+                        #        ,
+                        #        'optimizer': optimizer.state_dict(),
+                        #        'scheduler': scheduler.state_dict(),
+                        #        'epoch': epoch
+                        }
+                # sanity check 3
                 print("[DEBUG] CWD:", os.getcwd())
                 print("[DEBUG] hp.logdir:", hp.logdir)
                 print("[DEBUG] hp.task:", hp.task)
@@ -255,10 +260,12 @@ def train(trainset, validset, testset, run_tag, hp):
                 except Exception as e:
                     print("[DEBUG] SAVE FAILED:", repr(e))
 
-                #torch.save(ckpt, ckpt_path)
-                print("[DEBUG] Exists immediately after save?:", os.path.exists(ckpt_path))
+                # torch.save(ckpt, ckpt_path)
+                print("[DEBUG] Exists immediately after save?:",
+                      os.path.exists(ckpt_path))
 
-        print(f"epoch {epoch}: dev_f1={dev_f1}, f1={test_f1}, best_f1={best_test_f1}")
+        print(
+            f"epoch {epoch}: dev_f1={dev_f1}, f1={test_f1}, best_f1={best_test_f1}")
 
         # logging
         scalars = {'f1': dev_f1,

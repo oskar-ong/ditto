@@ -19,7 +19,7 @@ from scipy.special import softmax
 
 from ditto_light.ditto import evaluate, DittoModel
 from ditto_light.exceptions import ModelNotFoundError
-from ditto_light.dataset import DittoDataset
+from ditto_light.dataset import DittoDataset, get_tokenizer
 from ditto_light.summarize import Summarizer
 from ditto_light.knowledge import *
 
@@ -114,6 +114,7 @@ def classify(sentence_pairs, model,
     pred = [1 if p > threshold else 0 for p in all_probs]
     return pred, all_logits
 
+
 def predict(input_path, output_path, config,
             model,
             batch_size=1024,
@@ -154,8 +155,8 @@ def predict(input_path, output_path, config,
         scores = softmax(logits, axis=1)
         for row, pred, score in zip(rows, predictions, scores):
             output = {'left': row[0], 'right': row[1],
-                'match': pred,
-                'match_confidence': score[int(pred)]}
+                      'match': pred,
+                      'match_confidence': score[int(pred)]}
             writer.write(output)
 
     # input_path can also be train/valid/test.txt
@@ -168,12 +169,13 @@ def predict(input_path, output_path, config,
 
     # batch processing
     start_time = time.time()
-    with jsonlines.open(input_path) as reader,\
-         jsonlines.open(output_path, mode='w') as writer:
+    with jsonlines.open(input_path) as reader, \
+            jsonlines.open(output_path, mode='w') as writer:
         pairs = []
         rows = []
         for idx, row in tqdm(enumerate(reader)):
-            pairs.append(to_str(row[0], row[1], summarizer, max_len, dk_injector))
+            pairs.append(
+                to_str(row[0], row[1], summarizer, max_len, dk_injector))
             rows.append(row)
             if len(pairs) == batch_size:
                 process_batch(rows, pairs, writer)
@@ -184,7 +186,8 @@ def predict(input_path, output_path, config,
             process_batch(rows, pairs, writer)
 
     run_time = time.time() - start_time
-    run_tag = '%s_lm=%s_dk=%s_su=%s' % (config['name'], lm, str(dk_injector != None), str(summarizer != None))
+    run_tag = '%s_lm=%s_dk=%s_su=%s' % (config['name'], lm, str(
+        dk_injector != None), str(summarizer != None))
     os.system('echo %s %f >> log.txt' % (run_tag, run_time))
 
 
@@ -198,7 +201,8 @@ def tune_threshold(config, model, hp):
     summarizer = injector = None
     if hp.summarize:
         summarizer = Summarizer(config, lm=hp.lm)
-        validset = summarizer.transform_file(validset, max_len=hp.max_len, overwrite=True)
+        validset = summarizer.transform_file(
+            validset, max_len=hp.max_len, overwrite=True)
 
     if hp.dk is not None:
         if hp.dk == 'product':
@@ -252,7 +256,6 @@ def tune_threshold(config, model, hp):
     return th
 
 
-
 def load_model(task, path, lm, use_gpu, fp16=True):
     """Load a model for a specific task.
 
@@ -273,7 +276,7 @@ def load_model(task, path, lm, use_gpu, fp16=True):
         raise ModelNotFoundError(checkpoint)
 
     configs = json.load(open('configs.json'))
-    configs = {conf['name'] : conf for conf in configs}
+    configs = {conf['name']: conf for conf in configs}
     config = configs[task]
     config_list = [config]
 
@@ -282,13 +285,17 @@ def load_model(task, path, lm, use_gpu, fp16=True):
     else:
         device = 'cpu'
 
-    model = DittoModel(device=device, lm=lm)
+    special_tokens = config.get("special_tokens", [])
+    tokenizer = get_tokenizer(lm, special_tokens)
 
-    saved_state = torch.load(checkpoint, map_location=lambda storage, loc: storage)
+    model = DittoModel(device=device, lm=lm, vocab_size=len(tokenizer))
+
+    saved_state = torch.load(
+        checkpoint, map_location=lambda storage, loc: storage)
     model.load_state_dict(saved_state['model'])
     model = model.to(device)
 
-    #if fp16 and 'cuda' in device:
+    # if fp16 and 'cuda' in device:
     #    model = amp.initialize(model, opt_level='O2')
 
     return config, model
@@ -297,8 +304,10 @@ def load_model(task, path, lm, use_gpu, fp16=True):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default='Structured/Beer')
-    parser.add_argument("--input_path", type=str, default='input/candidates_small.jsonl')
-    parser.add_argument("--output_path", type=str, default='output/matched_small.jsonl')
+    parser.add_argument("--input_path", type=str,
+                        default='input/candidates_small.jsonl')
+    parser.add_argument("--output_path", type=str,
+                        default='output/matched_small.jsonl')
     parser.add_argument("--lm", type=str, default='distilbert')
     parser.add_argument("--use_gpu", dest="use_gpu", action="store_true")
     parser.add_argument("--fp16", dest="fp16", action="store_true")
@@ -311,7 +320,7 @@ if __name__ == "__main__":
     # load the models
     set_seed(123)
     config, model = load_model(hp.task, hp.checkpoint_path,
-                       hp.lm, hp.use_gpu, hp.fp16)
+                               hp.lm, hp.use_gpu, hp.fp16)
 
     summarizer = dk_injector = None
     if hp.summarize:

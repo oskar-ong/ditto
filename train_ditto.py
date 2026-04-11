@@ -1,3 +1,7 @@
+from ditto_light.ditto import train
+from ditto_light.knowledge import *
+from ditto_light.summarize import Summarizer
+from ditto_light.dataset import DittoDataset, get_tokenizer
 import os
 import argparse
 import json
@@ -8,12 +12,8 @@ import random
 
 sys.path.insert(0, "Snippext_public")
 
-from ditto_light.dataset import DittoDataset
-from ditto_light.summarize import Summarizer
-from ditto_light.knowledge import *
-from ditto_light.ditto import train
 
-if __name__=="__main__":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="Structured/Beer")
     parser.add_argument("--run_id", type=int, default=0)
@@ -48,17 +48,19 @@ if __name__=="__main__":
 
     # create the tag of the run
     run_tag = '%s_lm=%s_da=%s_dk=%s_su=%s_size=%s_id=%d' % (task, hp.lm, hp.da,
-            hp.dk, hp.summarize, str(hp.size), hp.run_id)
+                                                            hp.dk, hp.summarize, str(hp.size), hp.run_id)
     run_tag = run_tag.replace('/', '_')
 
     # load task configuration
     configs = json.load(open('configs.json'))
-    configs = {conf['name'] : conf for conf in configs}
+    configs = {conf['name']: conf for conf in configs}
     config = configs[task]
 
     trainset = config['trainset']
     validset = config['validset']
     testset = config['testset']
+
+    special_tokens = config.get("special_tokens", [])
 
     # summarize the sequences up to the max sequence length
     if hp.summarize:
@@ -79,15 +81,18 @@ if __name__=="__main__":
 
     # load train/dev/test sets
     train_dataset = DittoDataset(trainset,
-                                   lm=hp.lm,
-                                   max_len=hp.max_len,
-                                   size=hp.size,
-                                   da=hp.da)
+                                 lm=hp.lm,
+                                 max_len=hp.max_len,
+                                 size=hp.size,
+                                 da=hp.da,
+                                 special_tokens=special_tokens)
     valid_dataset = DittoDataset(validset, lm=hp.lm)
     test_dataset = DittoDataset(testset, lm=hp.lm)
+
+    tokenizer = get_tokenizer(hp.lm, special_tokens)
 
     # train and evaluate the model
     train(train_dataset,
           valid_dataset,
           test_dataset,
-          run_tag, hp)
+          run_tag, hp, len(tokenizer))
