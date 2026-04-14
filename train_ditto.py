@@ -32,6 +32,8 @@ if __name__ == "__main__":
     parser.add_argument("--summarize", dest="summarize", action="store_true")
     parser.add_argument("--size", type=int, default=None)
     parser.add_argument("--checkpoint_path", type=str, default=None)
+    parser.add_argument("--config_path", type=str,
+                        default="./models/ditto/configs.json")
 
     hp = parser.parse_args()
 
@@ -52,7 +54,8 @@ if __name__ == "__main__":
     run_tag = run_tag.replace('/', '_')
 
     # load task configuration
-    configs = json.load(open('configs.json'))
+    # configs = json.load(open('configs.json'))  # deprecated
+    configs = json.load(open(hp.config_path))
     configs = {conf['name']: conf for conf in configs}
     config = configs[task]
 

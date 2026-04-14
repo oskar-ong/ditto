@@ -1,3 +1,5 @@
+import uuid
+
 import torch
 import torch.nn as nn
 import os
@@ -161,34 +163,41 @@ def predict(input_path, output_path, config,
 
     # input_path can also be train/valid/test.txt
     # convert to jsonlines
+    temp_jsonl_created = False
     if '.txt' in input_path:
-        with jsonlines.open(input_path + '.jsonl', mode='w') as writer:
+        unique_tmp = f"tmp_{uuid.uuid4().hex[:8]}"
+        with jsonlines.open(f"{input_path}_{unique_tmp}.jsonl", mode='w') as writer:
             for line in open(input_path):
                 writer.write(line.split('\t')[:2])
-        input_path += '.jsonl'
+        input_path = f"{input_path}_{unique_tmp}.jsonl"
+        temp_jsonl_created = True
 
     # batch processing
-    start_time = time.time()
-    with jsonlines.open(input_path) as reader, \
-            jsonlines.open(output_path, mode='w') as writer:
-        pairs = []
-        rows = []
-        for idx, row in tqdm(enumerate(reader)):
-            pairs.append(
-                to_str(row[0], row[1], summarizer, max_len, dk_injector))
-            rows.append(row)
-            if len(pairs) == batch_size:
+    try:
+        start_time = time.time()
+        with jsonlines.open(input_path) as reader, \
+                jsonlines.open(output_path, mode='w') as writer:
+            pairs = []
+            rows = []
+            for idx, row in tqdm(enumerate(reader)):
+                pairs.append(
+                    to_str(row[0], row[1], summarizer, max_len, dk_injector))
+                rows.append(row)
+                if len(pairs) == batch_size:
+                    process_batch(rows, pairs, writer)
+                    pairs.clear()
+                    rows.clear()
+
+            if len(pairs) > 0:
                 process_batch(rows, pairs, writer)
-                pairs.clear()
-                rows.clear()
 
-        if len(pairs) > 0:
-            process_batch(rows, pairs, writer)
-
-    run_time = time.time() - start_time
-    run_tag = '%s_lm=%s_dk=%s_su=%s' % (config['name'], lm, str(
-        dk_injector != None), str(summarizer != None))
-    os.system('echo %s %f >> log.txt' % (run_tag, run_time))
+        # run_time = time.time() - start_time
+        # run_tag = '%s_lm=%s_dk=%s_su=%s' % (config['name'], lm, str(
+        #     dk_injector != None), str(summarizer != None))
+        # # os.system('echo %s %f >> log.txt' % (run_tag, run_time)) #
+    finally:
+        if temp_jsonl_created and os.path.exists(input_path):
+            os.remove(input_path)
 
 
 def tune_threshold(config, model, hp):
@@ -227,11 +236,12 @@ def tune_threshold(config, model, hp):
 
     # acc, prec, recall, f1, v_loss, th = eval_classifier(model, valid_iter,
     #                                                     get_threshold=True)
+    unique_tmp = f"tmp_{uuid.uuid4().hex[:8]}.jsonl"
     f1, th = evaluate(model, valid_iter, threshold=None)
 
     # verify F1
     set_seed(123)
-    predict(validset, "tmp.jsonl", config, model,
+    predict(validset, unique_tmp, config, model,
             summarizer=summarizer,
             max_len=hp.max_len,
             lm=hp.lm,
@@ -239,10 +249,14 @@ def tune_threshold(config, model, hp):
             threshold=th)
 
     predicts = []
-    with jsonlines.open("tmp.jsonl", mode="r") as reader:
+    # with jsonlines.open("tmp.jsonl", mode="r") as reader: # Race condition in parralel mode
+    with jsonlines.open(unique_tmp, mode="r") as reader:
         for line in reader:
             predicts.append(int(line['match']))
-    os.system("rm tmp.jsonl")
+
+    if os.path.exists(unique_tmp):
+        os.remove(unique_tmp)
+    # os.system("rm tmp.jsonl")
 
     labels = []
     with open(validset) as fin:
@@ -256,7 +270,7 @@ def tune_threshold(config, model, hp):
     return th
 
 
-def load_model(task, path, lm, use_gpu, fp16=True):
+def load_model(task, path, lm, use_gpu, fp16=True, config="./models/ditto/configs.json"):
     """Load a model for a specific task.
 
     Args:
@@ -275,7 +289,8 @@ def load_model(task, path, lm, use_gpu, fp16=True):
     if not os.path.exists(checkpoint):
         raise ModelNotFoundError(checkpoint)
 
-    configs = json.load(open('configs.json'))
+    # configs = json.load(open('configs.json')) # deprecated
+    configs = json.load(open(config))
     configs = {conf['name']: conf for conf in configs}
     config = configs[task]
     config_list = [config]
@@ -315,12 +330,14 @@ if __name__ == "__main__":
     parser.add_argument("--dk", type=str, default=None)
     parser.add_argument("--summarize", dest="summarize", action="store_true")
     parser.add_argument("--max_len", type=int, default=256)
+    parser.add_argument("--config_path", type=str,
+                        default="./models/ditto/configs.json")
     hp = parser.parse_args()
 
     # load the models
     set_seed(123)
     config, model = load_model(hp.task, hp.checkpoint_path,
-                               hp.lm, hp.use_gpu, hp.fp16)
+                               hp.lm, hp.use_gpu, hp.fp16, hp.config_path)
 
     summarizer = dk_injector = None
     if hp.summarize:
